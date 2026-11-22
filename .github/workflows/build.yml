@@ -13,11 +13,8 @@ jobs:
       - name: zip 풀기
         run: |
           ZIP=$(ls *.zip | head -1)
-          echo "zip: $ZIP"
           unzip -q "$ZIP" -d src
-          # zip 안에 riceos/ 폴더가 한 겹 더 있으면 한 단계 올린다
           if [ ! -f src/build.sh ] && [ -f src/riceos/build.sh ]; then cp -r src/riceos/. src/; fi
-          ls src
       - name: 도구 설치
         run: |
           sudo apt-get update
@@ -51,3 +48,41 @@ jobs:
         with:
           name: riceos-ui
           path: src/linux/riceos-ui
+
+  image:
+    name: 리눅스 USB 이미지 (riceos.img)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: zip 풀기
+        run: |
+          ZIP=$(ls *.zip | head -1)
+          unzip -q "$ZIP" -d src
+          if [ ! -f src/build.sh ] && [ -f src/riceos/build.sh ]; then cp -r src/riceos/. src/; fi
+      - name: 디스크 공간 확보
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
+          df -h /
+      - name: 도구 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libpng-dev zlib1g-dev \
+            debootstrap parted dosfstools e2fsprogs util-linux xz-utils
+      - name: riceos-ui 빌드 (이미지에 넣을 파일)
+        working-directory: src/linux
+        run: RICEOS_SYSTEM_LIBS=1 sh build.sh
+      - name: riceos.img 만들기 (Debian 설치, 몇십 분 걸림)
+        working-directory: src/linux
+        run: sudo bash make_image.sh 5G
+      - name: 압축 (용량 줄이기)
+        working-directory: src/linux
+        run: |
+          sudo chown $USER riceos.img
+          xz -T0 -6 riceos.img
+          ls -lh riceos.img.xz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: riceos.img.xz
+          path: src/linux/riceos.img.xz
+          retention-days: 14
