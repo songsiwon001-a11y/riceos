@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: 원본 zip 풀기
+      - name: 수정된 zip 풀기
         run: |
-          [ -f RICEOS_github.zip ] || { echo "RICEOS_github.zip 이 저장소 루트에 없습니다"; exit 1; }
-          unzip -q RICEOS_github.zip
+          [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
+          unzip -q RICEOS_github_fixed.zip
       - name: 도구 설치 (MinGW 크로스 컴파일러)
         run: |
           sudo apt-get update
@@ -31,10 +31,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: 원본 zip 풀기
+      - name: 수정된 zip 풀기
         run: |
-          [ -f RICEOS_github.zip ] || { echo "RICEOS_github.zip 이 저장소 루트에 없습니다"; exit 1; }
-          unzip -q RICEOS_github.zip
+          [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
+          unzip -q RICEOS_github_fixed.zip
       - name: 도구 설치
         run: |
           sudo apt-get update
@@ -53,10 +53,10 @@ jobs:
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
-      - name: 원본 zip 풀기
+      - name: 수정된 zip 풀기
         run: |
-          [ -f RICEOS_github.zip ] || { echo "RICEOS_github.zip 이 저장소 루트에 없습니다"; exit 1; }
-          unzip -q RICEOS_github.zip
+          [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
+          unzip -q RICEOS_github_fixed.zip
       - name: 디스크 공간 확보
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
@@ -65,60 +65,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libpng-dev zlib1g-dev \
-            debootstrap parted dosfstools e2fsprogs util-linux xz-utils python3
-      - name: make_image.sh 수정 적용 (bluez, grub, resolved)
-        working-directory: riceos
-        run: |
-          python3 - <<'PY'
-          p = 'linux/make_image.sh'
-          s = open(p, encoding='utf-8').read()
-
-          def rep(old, new):
-              global s
-              assert s.count(old) == 1, 'anchor not found: ' + old[:50]
-              s = s.replace(old, new)
-
-          rep(',bluez,', ',')
-
-          anchor = "chroot \"$MNT\" /bin/bash -e <<'CHROOT'"
-          block = r'''# bluez, systemd-resolved 설치 (서비스 자동 시작은 막음)
-          cp /etc/resolv.conf "$MNT/etc/resolv.conf"
-          printf '#!/bin/sh\nexit 101\n' > "$MNT/usr/sbin/policy-rc.d"
-          chmod +x "$MNT/usr/sbin/policy-rc.d"
-          chroot "$MNT" apt-get update -qq
-          chroot "$MNT" env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq bluez systemd-resolved
-          rm -f "$MNT/usr/sbin/policy-rc.d"
-          # grub-probe 가 loop 장치를 못 찾는 문제 방지
-          ln -sf /proc/self/mounts "$MNT/etc/mtab"
-          echo "GRUB_DEVICE_UUID=$ROOT_UUID" >> "$MNT/etc/default/grub"
-
-          '''
-          rep(anchor, block + anchor)
-
-          rep('\nupdate-grub\n', '\n')
-
-          grub = r'''# update-grub 대신 grub.cfg 직접 작성 (chroot 안 grub-probe 가 loop 장치를 찾지 못함)
-          mkdir -p "$MNT/boot/grub"
-          cat > "$MNT/boot/grub/grub.cfg" <<GRUBCFG
-          set timeout=0
-          set default=0
-          insmod part_gpt
-          insmod ext2
-          search --no-floppy --fs-uuid --set=root $ROOT_UUID
-          menuentry "RICEOS" {
-              linux /vmlinuz root=UUID=$ROOT_UUID ro quiet loglevel=3 vt.global_cursor_default=0
-              initrd /initrd.img
-          }
-          GRUBCFG
-          test -e "$MNT/vmlinuz" && test -e "$MNT/initrd.img" || { echo "커널 또는 initrd 심볼릭 링크가 없습니다"; exit 1; }
-
-          '''
-          rep('echo "[7/7] 정리"', grub + 'echo "[7/7] 정리"')
-
-          open(p, 'w', encoding='utf-8').write(s)
-          print('PATCH_OK')
-          PY
-          bash -n linux/make_image.sh
+            debootstrap parted dosfstools e2fsprogs util-linux xz-utils
       - name: riceos-ui 빌드 (이미지에 넣을 파일)
         working-directory: riceos/linux
         run: RICEOS_SYSTEM_LIBS=1 sh build.sh
