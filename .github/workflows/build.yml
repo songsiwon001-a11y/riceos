@@ -12,7 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: zip 풀기
         run: |
-          ZIP=$(ls *.zip | head -1)
+          ZIP=RICEOS_github_fixed.zip
+          [ -f "$ZIP" ] || { echo "$ZIP 이 저장소 루트에 없습니다"; exit 1; }
           unzip -q "$ZIP" -d src
           if [ ! -f src/build.sh ] && [ -f src/riceos/build.sh ]; then cp -r src/riceos/. src/; fi
       - name: 도구 설치
@@ -34,7 +35,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: zip 풀기
         run: |
-          ZIP=$(ls *.zip | head -1)
+          ZIP=RICEOS_github_fixed.zip
+          [ -f "$ZIP" ] || { echo "$ZIP 이 저장소 루트에 없습니다"; exit 1; }
           unzip -q "$ZIP" -d src
           if [ ! -f src/build.sh ] && [ -f src/riceos/build.sh ]; then cp -r src/riceos/. src/; fi
       - name: 도구 설치
@@ -57,7 +59,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: zip 풀기
         run: |
-          ZIP=$(ls *.zip | head -1)
+          ZIP=RICEOS_github_fixed.zip
+          [ -f "$ZIP" ] || { echo "$ZIP 이 저장소 루트에 없습니다"; exit 1; }
           unzip -q "$ZIP" -d src
           if [ ! -f src/build.sh ] && [ -f src/riceos/build.sh ]; then cp -r src/riceos/. src/; fi
       - name: 디스크 공간 확보
@@ -86,3 +89,6 @@ jobs:
           name: riceos.img.xz
           path: src/linux/riceos.img.xz
           retention-days: 14
+      - name: 실패 로그 보기
+        if: failure()
+        run: sudo tail -n 200 /tmp/riceos-root.*/debootstrap/debootstrap.log || true
