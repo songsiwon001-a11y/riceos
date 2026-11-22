@@ -1,0 +1,53 @@
+name: RICEOS build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  efi:
+    name: UEFI 부트로더 (BOOTX64.EFI)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: zip 풀기
+        run: |
+          ZIP=$(ls *.zip | head -1)
+          echo "zip: $ZIP"
+          unzip -q "$ZIP" -d src
+          # zip 안에 riceos/ 폴더가 한 겹 더 있으면 한 단계 올린다
+          if [ ! -f src/build.sh ] && [ -f src/riceos/build.sh ]; then cp -r src/riceos/. src/; fi
+          ls src
+      - name: 도구 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64
+      - name: BOOTX64.EFI 빌드
+        working-directory: src
+        run: sh build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BOOTX64.EFI
+          path: src/BOOTX64.EFI
+
+  linux:
+    name: 리눅스 UI (riceos-ui)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: zip 풀기
+        run: |
+          ZIP=$(ls *.zip | head -1)
+          unzip -q "$ZIP" -d src
+          if [ ! -f src/build.sh ] && [ -f src/riceos/build.sh ]; then cp -r src/riceos/. src/; fi
+      - name: 도구 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libpng-dev zlib1g-dev
+      - name: riceos-ui 빌드
+        working-directory: src/linux
+        run: RICEOS_SYSTEM_LIBS=1 sh build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: riceos-ui
+          path: src/linux/riceos-ui
