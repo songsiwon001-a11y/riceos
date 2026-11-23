@@ -46,6 +46,55 @@ jobs:
           print('CHROMIUM_MOVED_OK')
           PY
           bash -n make_image.sh
+      - name: 부팅 화면 테마를 script 모듈로 교체 (two-step 없음)
+        working-directory: riceos/linux/plymouth/riceos
+        run: |
+          cat > riceos.plymouth <<'PLY'
+          [Plymouth Theme]
+          Name=RICEOS
+          Description=RICEOS 부팅 화면: 가운데 로고와 가로 로딩바
+          ModuleName=script
+
+          [script]
+          ImageDir=/usr/share/plymouth/themes/riceos
+          ScriptFile=/usr/share/plymouth/themes/riceos/riceos.script
+          PLY
+          cat > riceos.script <<'SCRIPT'
+          screen_w = Window.GetWidth();
+          screen_h = Window.GetHeight();
+
+          Window.SetBackgroundTopColor(0, 0, 0);
+          Window.SetBackgroundBottomColor(0, 0, 0);
+
+          logo_img = Image.Text("RICEOS", 1, 1, 1);
+          logo = Sprite(logo_img);
+          logo.SetX(screen_w / 2 - logo_img.GetWidth() / 2);
+          logo.SetY(screen_h * 0.40);
+          logo.SetZ(0);
+
+          box_img = Image("progress_box.png");
+          box = Sprite(box_img);
+          box_x = screen_w / 2 - box_img.GetWidth() / 2;
+          box_y = screen_h * 0.72;
+          box.SetX(box_x);
+          box.SetY(box_y);
+          box.SetZ(0);
+
+          bar_full = Image("progress_bar.png");
+          bar = Sprite();
+          bar.SetZ(1);
+
+          fun progress_callback(duration, progress) {
+              w = bar_full.GetWidth() * progress;
+              if (w < 1)
+                  w = 1;
+              bar.SetImage(bar_full.Scale(w, bar_full.GetHeight()));
+              bar.SetX(box_x);
+              bar.SetY(box_y);
+          }
+          Plymouth.SetBootProgressFunction(progress_callback);
+          SCRIPT
+          ls -l
       - name: riceos.img 만들기 (Debian 설치, 몇십 분 걸림)
         working-directory: riceos/linux
         run: sudo bash make_image.sh 5G
