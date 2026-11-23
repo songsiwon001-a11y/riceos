@@ -17,10 +17,6 @@ jobs:
           [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
           mkdir -p riceos
           unzip -oq RICEOS_github_fixed.zip -d riceos
-          if [ -d "riceos/riceos" ]; then
-            mv riceos/riceos/* riceos/
-            rmdir riceos/riceos
-          fi
       - name: 도구 설치 (MinGW 크로스 컴파일러)
         run: |
           sudo apt-get update
@@ -45,10 +41,6 @@ jobs:
           [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
           mkdir -p riceos
           unzip -oq RICEOS_github_fixed.zip -d riceos
-          if [ -d "riceos/riceos" ]; then
-            mv riceos/riceos/* riceos/
-            rmdir riceos/riceos
-          fi
       - name: 도구 설치
         run: |
           sudo apt-get update
@@ -74,10 +66,6 @@ jobs:
           [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
           mkdir -p riceos
           unzip -oq RICEOS_github_fixed.zip -d riceos
-          if [ -d "riceos/riceos" ]; then
-            mv riceos/riceos/* riceos/
-            rmdir riceos/riceos
-          fi
       - name: 디스크 공간 확보
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
@@ -90,13 +78,17 @@ jobs:
       - name: riceos-ui 빌드 (이미지에 넣을 파일)
         working-directory: riceos/linux
         run: RICEOS_SYSTEM_LIBS=1 sh build.sh
-      - name: make_image.sh 패치 (chroot 내 shim-signed 오류 방지)
+      - name: make_image.sh 안전 패치
         working-directory: riceos/linux
         run: |
-          # debootstrap include 목록에서 shim-signed 제거
-          sed -i 's/,shim-signed//g; s/shim-signed,//g; s/shim-signed//g' make_image.sh
-          # 에러 발생 시 임시 폴더가 삭제되기 전에 debootstrap.log를 출력하도록 수정
-          sed -i 's/cleanup()/cleanup() { sudo tail -n 100 \/tmp\/riceos-root.*\/debootstrap\/debootstrap.log 2>\/dev\/null || true;/g' make_image.sh
+          python3 -c '
+          with open("make_image.sh", "rb") as f:
+              data = f.read().replace(b"\r\n", b"\n").decode("utf-8", errors="replace")
+          data = data.replace(",shim-signed", "").replace("shim-signed,", "").replace("shim-signed", "")
+          with open("make_image.sh", "w", encoding="utf-8") as f:
+              f.write(data)
+          '
+          bash -n make_image.sh
       - name: riceos.img 만들기 (Debian 설치, 몇십 분 걸림)
         working-directory: riceos/linux
         run: sudo bash make_image.sh 5G
@@ -111,3 +103,6 @@ jobs:
           name: riceos.img.xz
           path: riceos/linux/riceos.img.xz
           retention-days: 14
+      - name: 실패 로그 보기
+        if: failure()
+        run: sudo tail -n 200 /tmp/riceos-root.*/debootstrap/debootstrap.log || true
