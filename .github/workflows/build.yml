@@ -25,11 +25,8 @@ jobs:
       - name: 도구 설치
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libpng-dev zlib1g-dev \
-            debootstrap parted dosfstools e2fsprogs util-linux xz-utils
-      - name: riceos-ui 빌드 (이미지에 넣을 파일)
-        working-directory: riceos/linux
-        run: RICEOS_SYSTEM_LIBS=1 sh build.sh
+          sudo apt-get install -y debootstrap parted dosfstools e2fsprogs util-linux \
+            xz-utils squashfs-tools
       - name: riceos.img 만들기 (Debian 설치, 몇십 분 걸림)
         working-directory: riceos/linux
         run: sudo bash make_image.sh 10G
