@@ -84,7 +84,12 @@ jobs:
           python3 -c '
           with open("make_image.sh", "rb") as f:
               data = f.read().replace(b"\r\n", b"\n").decode("utf-8", errors="replace")
+          # 1. shim-signed 제외
           data = data.replace(",shim-signed", "").replace("shim-signed,", "").replace("shim-signed", "")
+          # 2. initramfs-tools 오류 방지를 위해 debootstrap 실행 시 --variant=minbase 대신 기본 유지하되 initramfs-tools를 나중에 설치하도록 제외
+          data = data.replace(",initramfs-tools", "").replace("initramfs-tools,", "")
+          # 3. cleanup 시 임시 폴더 삭제 전에 로그를 먼저 출력하도록 보강
+          data = data.replace("rm -rf \"$ROOT\"", "tail -n 100 \"$ROOT/debootstrap/debootstrap.log\" 2>/dev/null || true; rm -rf \"$ROOT\"")
           with open("make_image.sh", "w", encoding="utf-8") as f:
               f.write(data)
           '
