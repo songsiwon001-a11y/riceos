@@ -17,7 +17,6 @@ jobs:
           [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
           mkdir -p riceos
           unzip -oq RICEOS_github_fixed.zip -d riceos
-          # 만약 zip 안에 riceos 폴더가 또 있어서 riceos/riceos 형태가 되었다면 한 단계 위로 이동
           if [ -d "riceos/riceos" ]; then
             mv riceos/riceos/* riceos/
             rmdir riceos/riceos
@@ -91,6 +90,13 @@ jobs:
       - name: riceos-ui 빌드 (이미지에 넣을 파일)
         working-directory: riceos/linux
         run: RICEOS_SYSTEM_LIBS=1 sh build.sh
+      - name: make_image.sh 패치 (chroot 내 shim-signed 오류 방지)
+        working-directory: riceos/linux
+        run: |
+          # debootstrap include 목록에서 shim-signed 제거
+          sed -i 's/,shim-signed//g; s/shim-signed,//g; s/shim-signed//g' make_image.sh
+          # 에러 발생 시 임시 폴더가 삭제되기 전에 debootstrap.log를 출력하도록 수정
+          sed -i 's/cleanup()/cleanup() { sudo tail -n 100 \/tmp\/riceos-root.*\/debootstrap\/debootstrap.log 2>\/dev\/null || true;/g' make_image.sh
       - name: riceos.img 만들기 (Debian 설치, 몇십 분 걸림)
         working-directory: riceos/linux
         run: sudo bash make_image.sh 5G
@@ -105,6 +111,3 @@ jobs:
           name: riceos.img.xz
           path: riceos/linux/riceos.img.xz
           retention-days: 14
-      - name: 실패 로그 보기
-        if: failure()
-        run: sudo tail -n 200 /tmp/riceos-root.*/debootstrap/debootstrap.log || true
