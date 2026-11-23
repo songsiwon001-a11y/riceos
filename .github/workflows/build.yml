@@ -15,7 +15,13 @@ jobs:
       - name: 수정된 zip 풀기
         run: |
           [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
-          unzip -oq RICEOS_github_fixed.zip
+          mkdir -p riceos
+          unzip -oq RICEOS_github_fixed.zip -d riceos
+          # 만약 zip 안에 riceos 폴더가 또 있어서 riceos/riceos 형태가 되었다면 한 단계 위로 이동
+          if [ -d "riceos/riceos" ]; then
+            mv riceos/riceos/* riceos/
+            rmdir riceos/riceos
+          fi
       - name: 도구 설치 (MinGW 크로스 컴파일러)
         run: |
           sudo apt-get update
@@ -38,7 +44,12 @@ jobs:
       - name: 수정된 zip 풀기
         run: |
           [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
-          unzip -oq RICEOS_github_fixed.zip
+          mkdir -p riceos
+          unzip -oq RICEOS_github_fixed.zip -d riceos
+          if [ -d "riceos/riceos" ]; then
+            mv riceos/riceos/* riceos/
+            rmdir riceos/riceos
+          fi
       - name: 도구 설치
         run: |
           sudo apt-get update
@@ -62,7 +73,12 @@ jobs:
       - name: 수정된 zip 풀기
         run: |
           [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
-          unzip -oq RICEOS_github_fixed.zip
+          mkdir -p riceos
+          unzip -oq RICEOS_github_fixed.zip -d riceos
+          if [ -d "riceos/riceos" ]; then
+            mv riceos/riceos/* riceos/
+            rmdir riceos/riceos
+          fi
       - name: 디스크 공간 확보
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
