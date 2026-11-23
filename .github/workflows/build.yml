@@ -5,54 +5,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  efi:
-    name: UEFI 부트로더 (BOOTX64.EFI)
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-      - name: 수정된 zip 풀기
-        run: |
-          [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
-          mkdir -p riceos
-          unzip -oq RICEOS_github_fixed.zip -d riceos
-      - name: 도구 설치 (MinGW 크로스 컴파일러)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64
-      - name: BOOTX64.EFI 빌드
-        working-directory: riceos
-        run: sh build.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: BOOTX64.EFI
-          path: riceos/BOOTX64.EFI
-
-  linux:
-    name: 리눅스 UI (riceos-ui)
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-      - name: 수정된 zip 풀기
-        run: |
-          [ -f RICEOS_github_fixed.zip ] || { echo "RICEOS_github_fixed.zip 이 저장소 루트에 없습니다"; exit 1; }
-          mkdir -p riceos
-          unzip -oq RICEOS_github_fixed.zip -d riceos
-      - name: 도구 설치
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libpng-dev zlib1g-dev
-      - name: riceos-ui 빌드
-        working-directory: riceos/linux
-        run: RICEOS_SYSTEM_LIBS=1 sh build.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: riceos-ui
-          path: riceos/linux/riceos-ui
-
   image:
     name: 리눅스 USB 이미지 (riceos.img)
     runs-on: ubuntu-24.04
@@ -78,21 +30,21 @@ jobs:
       - name: riceos-ui 빌드 (이미지에 넣을 파일)
         working-directory: riceos/linux
         run: RICEOS_SYSTEM_LIBS=1 sh build.sh
-      - name: make_image.sh 안전 패치
+      - name: chromium 을 chroot 설치 단계로 이동
         working-directory: riceos/linux
         run: |
-          python3 -c '
-          with open("make_image.sh", "rb") as f:
-              data = f.read().replace(b"\r\n", b"\n").decode("utf-8", errors="replace")
-          # 1. shim-signed 제외
-          data = data.replace(",shim-signed", "").replace("shim-signed,", "").replace("shim-signed", "")
-          # 2. initramfs-tools 오류 방지를 위해 debootstrap 실행 시 --variant=minbase 대신 기본 유지하되 initramfs-tools를 나중에 설치하도록 제외
-          data = data.replace(",initramfs-tools", "").replace("initramfs-tools,", "")
-          # 3. cleanup 시 임시 폴더 삭제 전에 로그를 먼저 출력하도록 보강
-          data = data.replace("rm -rf \"$ROOT\"", "tail -n 100 \"$ROOT/debootstrap/debootstrap.log\" 2>/dev/null || true; rm -rf \"$ROOT\"")
-          with open("make_image.sh", "w", encoding="utf-8") as f:
-              f.write(data)
-          '
+          python3 - <<'PY'
+          p = 'make_image.sh'
+          s = open(p, encoding='utf-8').read()
+          old_list = ',chromium \\\n'
+          assert s.count(old_list) == 1, 'chromium 목록 줄을 찾지 못했습니다'
+          s = s.replace(old_list, ' \\\n')
+          old_bluez = 'apt-get install -y -qq bluez systemd-resolved\n'
+          assert s.count(old_bluez) == 1, 'bluez 설치 줄을 찾지 못했습니다'
+          s = s.replace(old_bluez, 'apt-get install -y -qq bluez systemd-resolved chromium\n')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('CHROMIUM_MOVED_OK')
+          PY
           bash -n make_image.sh
       - name: riceos.img 만들기 (Debian 설치, 몇십 분 걸림)
         working-directory: riceos/linux
