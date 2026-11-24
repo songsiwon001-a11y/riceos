@@ -15,9 +15,11 @@ jobs:
           lfs: true
       - name: 수정된 zip 풀기
         run: |
-          [ -f RICEOS_github_fixed_v31.zip ] || { echo "RICEOS_github_fixed_v31.zip 이 저장소 루트에 없습니다"; exit 1; }
+          ZIP=$(ls RICEOS_github_fixed*.zip 2>/dev/null | head -1)
+          [ -n "$ZIP" ] || { echo "RICEOS_github_fixed*.zip 이 저장소 루트에 없습니다"; exit 1; }
+          echo "사용하는 zip: $ZIP"
           mkdir -p riceos
-          unzip -oq RICEOS_github_fixed_v31.zip -d riceos
+          unzip -oq "$ZIP" -d riceos
       - name: 디스크 공간 확보
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
@@ -26,10 +28,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y debootstrap parted dosfstools e2fsprogs util-linux \
-            xz-utils squashfs-tools
-      - name: riceos.img 만들기 (Debian 설치, 몇십 분 걸림)
+            xz-utils squashfs-tools git
+      - name: riceos.img 만들기 (Debian 설치, 드라이버 빌드 포함, 몇십 분 걸림)
         working-directory: riceos/linux
-        run: sudo bash make_image.sh 10G
+        run: sudo bash make_image.sh 10G 2>&1 | tee ../../build.log
+      - name: 드라이버 빌드 결과 보기
+        if: always()
+        run: grep -E "\[무선랜\]|경고" build.log || echo "무선랜 관련 줄 없음"
       - name: 압축 (용량 줄이기)
         working-directory: riceos/linux
         run: |
@@ -41,6 +46,10 @@ jobs:
           name: riceos.img.xz
           path: riceos/linux/riceos.img.xz
           retention-days: 14
-      - name: 실패 로그 보기
-        if: failure()
-        run: sudo tail -n 200 /tmp/riceos-root.*/debootstrap/debootstrap.log || true
+      - name: 빌드 로그 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 14
