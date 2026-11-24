@@ -15,9 +15,9 @@ jobs:
           lfs: true
       - name: 수정된 zip 풀기
         run: |
-          [ -f RICEOS_github_fixed_v29.zip ] || { echo "RICEOS_github_fixed_v29.zip 이 저장소 루트에 없습니다"; exit 1; }
+          [ -f RICEOS_github_fixed_v31.zip ] || { echo "RICEOS_github_fixed_v31.zip 이 저장소 루트에 없습니다"; exit 1; }
           mkdir -p riceos
-          unzip -oq RICEOS_github_fixed_v29.zip -d riceos
+          unzip -oq RICEOS_github_fixed_v31.zip -d riceos
       - name: 디스크 공간 확보
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
